@@ -10,6 +10,7 @@ import { checkLoginRateLimit, recordLoginFailure, recordLoginSuccess } from "@/l
 import { safeRevalidatePath } from "@/lib/revalidate";
 import { isRegistrationOpen } from "@/lib/registration";
 import { isOidcConfigured } from "@/lib/oidc";
+import { passwordMatches } from "@/lib/passwords";
 
 const loginSchema = z.object({
   email: z.string().trim().min(1),
@@ -95,13 +96,8 @@ export async function loginUser(formData: { email: string; password: string }) {
       where: { email: email.toLowerCase().trim() },
     });
 
-    if (!user || !user.passwordHash) {
-      recordLoginFailure(email, ip);
-      return { success: false, error: "Invalid email or password." };
-    }
-
-    const isValidPassword = await bcrypt.compare(password, user.passwordHash);
-    if (!isValidPassword) {
+    const isValidPassword = await passwordMatches(password, user?.passwordHash);
+    if (!user || !isValidPassword) {
       recordLoginFailure(email, ip);
       return { success: false, error: "Invalid email or password." };
     }
