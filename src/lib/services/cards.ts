@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { validateParentCard } from "@/lib/cardParent";
+import { deleteRowsAndAttachmentFiles } from "@/lib/attachmentCleanup";
 import { safeRevalidatePath } from "@/lib/revalidate";
 import { recordActivity } from "@/lib/services/activity";
 import { nextCardNumber, withCardNumberRetry } from "@/lib/cardNumbering";
@@ -498,9 +499,11 @@ export async function deleteCard(id: string, userId: string) {
       return { success: false, error: "Unauthorized" };
     }
 
-    await db.card.delete({
-      where: { id },
-    });
+    await deleteRowsAndAttachmentFiles({ cardId: id }, () =>
+      db.card.delete({
+        where: { id },
+      })
+    );
 
     safeRevalidatePath(`/projects/${existingCard.projectId}`);
     return { success: true };

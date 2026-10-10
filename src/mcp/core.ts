@@ -11,6 +11,7 @@ import { assertHexColor } from "@/lib/colors";
 import { db } from "@/lib/db";
 import { validateParentCard } from "@/lib/cardParent";
 import { lastColumnError } from "@/lib/columnGuards";
+import { deleteRowsAndAttachmentFiles } from "@/lib/attachmentCleanup";
 import { DEFAULT_CARD_TYPES } from "@/lib/cardTypeDefaults";
 import { nextCardNumber, withCardNumberRetry } from "@/lib/cardNumbering";
 import { generateProjectKey } from "@/lib/projectKey";
@@ -829,7 +830,7 @@ export async function executeMcpTool(
     case "delete_project": {
       const existingProject = await db.project.findUnique({ where: { id: args.id } });
       if (!existingProject || !(await verifyProjectAccess(existingProject.id, userId, "OWNER"))) throw new Error(`Project with ID ${args.id} not found.`);
-      await db.project.delete({ where: { id: args.id } });
+      await deleteRowsAndAttachmentFiles({ card: { projectId: args.id } }, () => db.project.delete({ where: { id: args.id } }));
       return { success: true, deletedId: args.id };
     }
 
@@ -903,7 +904,7 @@ export async function executeMcpTool(
       if (!existingColumn || !(await verifyProjectAccess(existingColumn.projectId, userId, "ADMIN"))) throw new Error(`Column with ID ${args.id} not found.`);
       const lastColumn = await lastColumnError(existingColumn.projectId);
       if (lastColumn) throw new Error(lastColumn);
-      await db.column.delete({ where: { id: args.id } });
+      await deleteRowsAndAttachmentFiles({ card: { columnId: args.id } }, () => db.column.delete({ where: { id: args.id } }));
       return { success: true, deletedId: args.id };
     }
 
@@ -1210,7 +1211,7 @@ export async function executeMcpTool(
     case "delete_card": {
       const existingCard = await db.card.findUnique({ where: { id: args.id } });
       if (!existingCard || !(await verifyProjectAccess(existingCard.projectId, userId, "MEMBER"))) throw new Error(`Card with ID ${args.id} not found.`);
-      await db.card.delete({ where: { id: args.id } });
+      await deleteRowsAndAttachmentFiles({ cardId: args.id }, () => db.card.delete({ where: { id: args.id } }));
       return { success: true, deletedId: args.id };
     }
 
