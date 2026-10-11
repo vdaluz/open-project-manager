@@ -121,7 +121,7 @@ describe("MCP Server Core Tools", () => {
     let projectId: string;
 
     beforeEach(async () => {
-      const projRes = await executeMcpTool("create_project", { name: "Cursor Edge Project", userId });
+      const projRes = await executeMcpTool("create_project", { name: "Cursor Edge Project", userId }, { userId });
       projectId = projRes.project!.id;
       const columnId = (projRes.project as any).columns[0].id;
       await db.card.createMany({
@@ -132,19 +132,19 @@ describe("MCP Server Core Tools", () => {
     const titles = (res: { cards?: { title: string }[] }) => res.cards!.map((c) => c.title);
 
     it("continues past a cursor card that was deleted between pages", async () => {
-      const page1 = await executeMcpTool("list_cards", { projectId, limit: 3 });
+      const page1 = await executeMcpTool("list_cards", { projectId, limit: 3 }, { userId });
       await db.card.delete({ where: { id: page1.cards![2].id } });
 
-      const page2 = await executeMcpTool("list_cards", { projectId, limit: 3, cursor: page1.nextCursor });
+      const page2 = await executeMcpTool("list_cards", { projectId, limit: 3, cursor: page1.nextCursor }, { userId });
 
       expect(titles(page2)).toEqual(["D"]);
       expect(page2.nextCursor).toBeNull();
     });
 
     it("returns no nextCursor on the last page when the total is an exact multiple of limit", async () => {
-      const page1 = await executeMcpTool("list_cards", { projectId, limit: 2 });
+      const page1 = await executeMcpTool("list_cards", { projectId, limit: 2 }, { userId });
 
-      const page2 = await executeMcpTool("list_cards", { projectId, limit: 2, cursor: page1.nextCursor });
+      const page2 = await executeMcpTool("list_cards", { projectId, limit: 2, cursor: page1.nextCursor }, { userId });
 
       expect(titles(page2)).toEqual(["C", "D"]);
       expect(page2.nextCursor).toBeNull();
@@ -153,10 +153,10 @@ describe("MCP Server Core Tools", () => {
     it("rejects a malformed cursor, including a plain card id", async () => {
       const cardId = (await db.card.findFirstOrThrow({ where: { projectId } })).id;
 
-      await expect(executeMcpTool("list_cards", { projectId, cursor: "not-a-cursor" })).rejects.toThrow("Invalid cursor");
-      await expect(executeMcpTool("list_cards", { projectId, cursor: cardId })).rejects.toThrow("Invalid cursor");
+      await expect(executeMcpTool("list_cards", { projectId, cursor: "not-a-cursor" }, { userId })).rejects.toThrow("Invalid cursor");
+      await expect(executeMcpTool("list_cards", { projectId, cursor: cardId }, { userId })).rejects.toThrow("Invalid cursor");
       const wrongShape = Buffer.from(JSON.stringify(["10", cardId])).toString("base64url");
-      await expect(executeMcpTool("list_cards", { projectId, cursor: wrongShape })).rejects.toThrow("Invalid cursor");
+      await expect(executeMcpTool("list_cards", { projectId, cursor: wrongShape }, { userId })).rejects.toThrow("Invalid cursor");
     });
   });
 
